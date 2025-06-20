@@ -12,7 +12,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-KEYWORDS = ['desarrollador web', 'frontend', 'programador junior', 'programador', 'desarrollador junior']
+KEYWORDS = ['desarrollador web', 'frontend', 'programador junior', 'programador']
 DAYS_BACK = 7
 
 SELENIUM_PATH = './chromedriver'
@@ -51,7 +51,7 @@ def parse_date(date_str, site):
         if site == 'computrabajo':
             return datetime.strptime(date_str, '%d/%m/%Y')
         elif site == 'unmejorempleo':
-            return datetime.strptime(date_str, '%Y-%m-%d')
+            return datetime.strptime(date_str, '%d/%m/%Y')
 
         return datetime.now()
     except:
@@ -102,7 +102,8 @@ def scrape_computrabajo(keyword, max_results=50):
     base_url = "https://ve.computrabajo.com"
     urls = []
     start_date, _ = get_current_week_dates()
-    search_url = f"{base_url}/trabajo-de-{keyword.replace(' ', '-')}"
+    search_url = f"{base_url}/trabajo-de-{keyword.replace(' ', '-')}?pubdate=15"
+    print(f"Buscando en Computrabajo: {search_url}")
 
     try:
         session = requests.Session()
@@ -147,7 +148,8 @@ def scrape_unmejorempleo(keyword, max_results=50):
     base_url = "https://www.unmejorempleo.com.ve"
     urls = []
     start_date, _ = get_current_week_dates()
-    search_url = f"{base_url}/trabajo-{keyword.replace(' ', '-')}.html"
+    search_url = f"{base_url}/trabajo-{keyword.replace(' ', '-')}.html?f=2"
+    print(f"Buscando en UnMejorEmpleo: {search_url}")
 
     try:
         session = requests.Session()
@@ -156,13 +158,13 @@ def scrape_unmejorempleo(keyword, max_results=50):
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        job_cards = soup.find_all('div', {'class': 'item-normal'})
+        job_cards = soup.find_all('div', class_='item-normal')
 
         for card in job_cards[:max_results]:
             try:
-                date_tag = card.find('span', class_='date')
-                if date_tag:
-                    date_str = date_tag.get_text(strip=True)
+                date_li = card.find('li', class_='text-warning')
+                if date_li and 'publicación:' in date_li.text.lower():
+                    date_str = date_li.text.split('Publicación:')[1].split('-')[0].strip()
                     job_date = parse_date(date_str, 'unmejorempleo')
 
                     if job_date >= start_date:
@@ -170,7 +172,7 @@ def scrape_unmejorempleo(keyword, max_results=50):
                         if title_tag and title_tag.a:
                             job_url = title_tag.a.get('href')
                             if job_url:
-                                full_url = f"{base_url}{job_url}" if not job_url.startswith('http') else job_url
+                                full_url = f"{base_url}/{job_url}" if not job_url.startswith('http') else job_url
                                 urls.append((full_url, job_date.strftime('%Y-%m-%d')))
 
             except Exception as e:
